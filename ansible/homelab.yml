@@ -1,0 +1,127 @@
+---
+# Usage (from the ansible/ directory):
+#   ansible-playbook homelab.yml                          # full deploy (up)
+#   ansible-playbook homelab.yml -e homelab_action=up     # same as above
+#   ansible-playbook homelab.yml -e homelab_action=down   # stop and remove
+#   ansible-playbook homelab.yml -e homelab_action=restart
+#   ansible-playbook homelab.yml -e homelab_action=status # podman-compose ps
+#   ansible-playbook homelab.yml -e homelab_action=logs   # recent logs
+
+- name: Homelab services
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  vars:
+    compose_dir: "{{ homelab_root }}/docker"
+    homelab_action: up
+
+  tasks:
+    - name: Install podman and podman-compose
+      ansible.builtin.package:
+        name: "{{ podman_packages[ansible_facts['os_family']] | default(['podman', 'podman-compose']) }}"
+        state: present
+      become: true
+      when: homelab_action == 'up'
+
+    - name: Check whether the repo is already present
+      ansible.builtin.stat:
+        path: "{{ homelab_root }}/.git"
+      register: repo_git
+      when: homelab_action == 'up'
+
+    - name: Clone the repo if missing
+      ansible.builtin.git:
+        repo: "{{ repo_url }}"
+        dest: "{{ homelab_root }}"
+        version: "{{ repo_version }}"
+        accept_hostkey: true
+      when: homelab_action == 'up' and not repo_git.stat.exists
+
+    - name: Check working tree state
+      ansible.builtin.command:
+        cmd: git status --porcelain
+        chdir: "{{ homelab_root }}"
+      register: git_status
+      changed_when: false
+      when: homelab_action == 'up' and repo_git.stat.exists
+
+    - name: Pull latest (fast-forward only)
+      ansible.builtin.command:
+        cmd: git pull --ff-only
+        chdir: "{{ homelab_root }}"
+      register: git_pull
+      changed_when: "'up to date' not in (git_pull.stdout | lower)"
+      when: homelab_action == 'up' and repo_git.stat.exists and git_status.stdout == ""
+
+    - name: Note skipped pull (dirty working tree)
+      ansible.builtin.debug:
+        msg: "Skipping git pull: {{ homelab_root }} has uncommitted changes."
+      when: homelab_action == 'up' and repo_git.stat.exists and git_status.stdout != ""
+
+    - name: Ensure data directories exist
+      ansible.builtin.file:
+        path: "{{ homelab_root }}/data/{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - flatnotes
+        - homepage/config
+        - kavita/config
+        - navidrome/data
+      when: homelab_action == 'up'
+
+    - name: Ensure Flatnotes environment file exists
+      ansible.builtin.template:
+        src: flatnotes.env.j2
+        dest: "{{ compose_dir }}/flatnotes/.env"
+        mode: "0600"
+        force: false
+      when: homelab_action == 'up'
+
+    - name: Start all stacks
+      ansible.builtin.command:
+        cmd: podman-compose up -d
+        chdir: "{{ compose_dir }}/{{ item }}"
+      loop: "{{ stacks }}"
+      changed_when: false
+      when: homelab_action == 'up'
+
+    - name: Stop and remove all stacks
+      ansible.builtin.command:
+        cmd: podman-compose down
+        chdir: "{{ compose_dir }}/{{ item }}"
+      loop: "{{ stacks }}"
+      changed_when: false
+      when: homelab_action == 'down'
+
+    - name: Restart all stacks
+      ansible.builtin.command:
+        cmd: podman-compose restart
+        chdir: "{{ compose_dir }}/{{ item }}"
+      loop: "{{ stacks }}"
+      changed_when: false
+      when: homelab_action == 'restart'
+
+    - name: Show container status
+      ansible.builtin.command:
+        cmd: podman-compose ps
+        chdir: "{{ compose_dir }}/{{ item }}"
+      loop: "{{ stacks }}"
+      register: stack_ps
+      changed_when: false
+      when: homelab_action == 'status'
+
+    - name: Print container status
+      ansible.builtin.debug:
+        msg: "{{ item.item }}:\n{{ item.stdout }}"
+      loop: "{{ stack_ps.results }}"
+      when: homelab_action == 'status' and stack_ps.results is defined
+
+    - name: Show recent logs
+      ansible.builtin.command:
+        cmd: podman-compose logs --tail={{ logs_tail }}
+        chdir: "{{ compose_dir }}/{{ item }}"
+      loop: "{{ stacks }}"
+      changed_when: false
+      when: homelab_action == 'logs'
