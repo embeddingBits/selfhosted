@@ -1,6 +1,6 @@
 # Selfhosted Setup
 
-My selfhosted homelab setup managed using [Podman](https://podman.io/). All the services are managed using **Podman Compose** as of now. All the services are managed by scripts as of now and most of the management and automation will be migrated with Ansible when I find time.
+My selfhosted homelab setup managed using [Podman](https://podman.io/) and **Podman Compose**. Services are managed either with the `scripts/homelab.sh` wrapper or the Ansible playbook in `ansible/`.
 
 # Infrastructure
 ## Tools 
@@ -23,10 +23,31 @@ My selfhosted homelab setup managed using [Podman](https://podman.io/). All the 
 ├── docker/             # Docker compose files
 ├── media/
 ├── scripts/            # Some scripts to manage services
-└── ansible
+└── ansible/            # Ansible playbook, inventory and vars
 ```
 
+## Managing with Ansible
+
+The `ansible/` directory contains a playbook that manages the services on this
+host. It runs locally (rootless, as the current user) and covers the full
+deploy: installing prerequisites, syncing the repo, creating the Flatnotes
+`.env`, and starting the stacks.
+
+```sh
+cd ansible
+ansible-playbook homelab.yml                          # full deploy
+ansible-playbook homelab.yml -e homelab_action=up     # start all stacks
+ansible-playbook homelab.yml -e homelab_action=down   # stop and remove all stacks
+ansible-playbook homelab.yml -e homelab_action=restart
+ansible-playbook homelab.yml -e homelab_action=status # show container status
+ansible-playbook homelab.yml -e homelab_action=logs   # show recent logs
+```
+
+Flatnotes credentials are stored in `ansible/group_vars/all.yml` (placeholders by
+default) and are written to `docker/flatnotes/.env` only if that file doesn't
+already exist. Set real values there or override with `--extra-vars`.
+
 # TODO
-- [ ] Ansible Playbooks
+- [x] Ansible Playbooks
 - [ ] Migrate to Kubernetes
 - [ ] Backup using syncthing
