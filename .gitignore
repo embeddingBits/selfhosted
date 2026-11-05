@@ -3,3 +3,9 @@ media/
 backups/
 data/
 .ansible
+cache/
+*.db
+*.db-shm
+library/
+__pycache__/
+*.db-wal/

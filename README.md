@@ -15,7 +15,7 @@ My selfhosted homelab setup managed using [Podman](https://podman.io/) and **Pod
 | Flatnotes  | Markdown notes app     | `docker/flatnotes`   |
 | Kavita     | Book / reading server  | `docker/kavita`      |
 | Navidrome  | Music streaming server | `docker/navidrome`   |
-
+| Immich     | Photo/Video storage server | `docker/immich`  |
 ## Directory layout
 
 ```
@@ -46,6 +46,24 @@ ansible-playbook homelab.yml -e homelab_action=logs   # show recent logs
 Flatnotes credentials are stored in `ansible/group_vars/all.yml` (placeholders by
 default) and are written to `docker/flatnotes/.env` only if that file doesn't
 already exist. Set real values there or override with `--extra-vars`.
+
+## Music cover art
+
+`scripts/music_cover.py` matches and embeds album cover art for the music
+library. It reads each track's tags, looks the track up on the iTunes Search
+API, and writes a plan you can review before it changes anything.
+
+```sh
+scripts/music_cover.py --music-dir ~/Music --dry-run   # write and review the plan
+scripts/music_cover.py --music-dir ~/Music --apply     # download and embed covers
+```
+
+Tracks with an empty album tag get the resolved album name written back
+(`set_album` in the plan). If a match is wrong, edit `resolved_album` / `art`
+in the plan file before applying. Requires `ffmpeg` and `ffprobe`.
+
+Cover art is embedded for `.m4a`/`.mp4`, `.mp3`, and `.flac`; `.ogg`, `.opus`,
+and `.wav` are skipped (ffmpeg can't embed art in those containers).
 
 # TODO
 - [x] Ansible Playbooks
