@@ -65,18 +65,9 @@
         state: directory
         mode: "0755"
       loop:
-        - flatnotes
         - homepage/config
         - kavita/config
         - navidrome/data
-      when: homelab_action == 'up'
-
-    - name: Ensure Flatnotes environment file exists
-      ansible.builtin.template:
-        src: flatnotes.env.j2
-        dest: "{{ compose_dir }}/flatnotes/.env"
-        mode: "0600"
-        force: false
       when: homelab_action == 'up'
 
     - name: Start all stacks

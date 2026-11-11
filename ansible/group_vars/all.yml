@@ -7,7 +7,6 @@ repo_url: git@github.com:embeddingBits/selfhosted
 repo_version: main
 
 stacks:
-  - flatnotes
   - homepage
   - kavita
   - navidrome
@@ -16,10 +15,5 @@ podman_packages:
   Archlinux: [podman, podman-compose]
   Debian: [podman, podman-compose]
   RedHat: [podman, podman-compose]
-
-flatnotes_auth_type: password
-flatnotes_username: ebits
-flatnotes_password: CHANGE_ME
-flatnotes_secret_key: CHANGE_ME
 
 logs_tail: 200
