@@ -2,10 +2,11 @@
 media/
 backups/
 data/
+docker/TriliumNotes/
 .ansible
 cache/
 *.db
 *.db-shm
 library/
 __pycache__/
-*.db-wal/
+*.db-wal
